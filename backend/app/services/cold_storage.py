@@ -84,6 +84,28 @@ class ColdStorageService(BaseModuleService):
     def get_migration_status(self, asset_id: str) -> dict[str, Any] | None:
         return self._read_cold_storage_record(asset_id)
 
+    # ---------- 回迁容量明细与派发 ----------
+    def prefetch_capacity_detail(self) -> dict[str, Any]:
+        """派发前读取回迁容量明细：计划量按冷存对象聚合，避免把同一次读取重复计入。"""
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").capacity_summary()
+
+    def dispatch_prefetch_read(self, capacity_id: int, as_of: str,
+                               hold_until: str | None = None) -> tuple[dict[str, Any] | None, str]:
+        """按容量明细实际派发一次冷存读取，记录读量与暂存占用区间。"""
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").dispatch(
+            capacity_id, as_of, hold_until=hold_until)
+
+    def reclaim_prefetch_capacity(self, as_of: str) -> dict[str, Any]:
+        """目标保留窗口结束后回收暂存占用，仍在窗口内的目标继续保留数据。"""
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").reclaim(as_of)
+
+    def prefetch_capacity_overview(self, as_of: str) -> dict[str, Any]:
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").overview(as_of)
+
     def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
         if action == "发起迁移":
             return self.start_migration(entry_id)

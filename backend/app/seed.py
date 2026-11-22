@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.scenario import SCENARIO_CAPACITY_ROWS, SCENARIO_HOT_TASKS, SCENARIO_STAGING_ROWS
+
 SEED_ROWS: dict[str, list[dict[str, Any]]] = {
     "asset_catalog": [{'id': 1,
   'status': '草稿',
@@ -255,7 +257,10 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '预计耗时': '预热回迁样例3',
   '优先级': '预热回迁样例3',
   '过期策略': '预热回迁样例3',
-  '任务状态': '预热回迁样例3'}],
+  '任务状态': '预热回迁样例3'},
+ *SCENARIO_HOT_TASKS],
+    "prefetch_capacity": SCENARIO_CAPACITY_ROWS,
+    "prefetch_staging": SCENARIO_STAGING_ROWS,
     "version_snapshot": [{'id': 1,
   'status': '创建中',
   'pending': True,

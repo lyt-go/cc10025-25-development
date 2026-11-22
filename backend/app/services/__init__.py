@@ -10,6 +10,11 @@ from app.services.retention_rule import RetentionRuleService
 from app.services.compliance_check import ComplianceCheckService
 from app.services.cold_storage import ColdStorageService
 from app.services.hot_prefetch import HotPrefetchService
+from app.services.prefetch_capacity import (
+    PrefetchCapacityService,
+    PrefetchReadService,
+    PrefetchStagingService,
+)
 from app.services.version_snapshot import VersionSnapshotService
 from app.services.label_tag import LabelTagService
 from app.services.audit_log import AuditLogService
@@ -30,6 +35,9 @@ _SERVICE_CLASSES = [
     ComplianceCheckService,
     ColdStorageService,
     HotPrefetchService,
+    PrefetchCapacityService,
+    PrefetchReadService,
+    PrefetchStagingService,
     VersionSnapshotService,
     LabelTagService,
     AuditLogService,
@@ -69,6 +77,9 @@ __all__ = [
     "ComplianceCheckService",
     "ColdStorageService",
     "HotPrefetchService",
+    "PrefetchCapacityService",
+    "PrefetchReadService",
+    "PrefetchStagingService",
     "VersionSnapshotService",
     "LabelTagService",
     "AuditLogService",

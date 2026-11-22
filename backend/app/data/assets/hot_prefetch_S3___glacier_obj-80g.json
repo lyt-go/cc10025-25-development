@@ -1,0 +1,10 @@
+{
+  "cold_location": "S3://glacier/obj-80g",
+  "task_id": "HOT_-B",
+  "target_partition": "dwd_order_b",
+  "volume": "80GB",
+  "priority": "高",
+  "expiry_policy": "2026-11-22T18:00",
+  "status": "回迁中",
+  "updated_at": "2026-11-22T16:15:13.741307+00:00"
+}

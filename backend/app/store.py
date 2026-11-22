@@ -27,6 +27,10 @@ class Store:
                 return row
         return None
 
+    def replace_rows(self, module: str, rows: list[dict[str, Any]]) -> None:
+        """整表替换；演示场景重置和测试隔离用。"""
+        self._tables[module] = [dict(row) for row in rows]
+
     def overview(self) -> dict[str, object]:
         modules: list[dict[str, object]] = []
         for name in self.module_names():

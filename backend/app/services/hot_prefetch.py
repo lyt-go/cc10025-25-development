@@ -26,6 +26,7 @@ class HotPrefetchService(BaseModuleService):
     REQUIRED_FIELDS = ["任务编号", "冷存位置", "目标分区"]
     STATUS_ORDER = ["排队中", "回迁中", "已完成", "已取消"]
     ACTION_RULES = {"发起回迁": "回迁中", "确认完成": "已完成", "取消任务": "已取消"}
+    EXTRA_ACTIONS = ["回收占用"]
     NEGATIVE_ACTIONS = []
 
     def __init__(self):
@@ -40,6 +41,15 @@ class HotPrefetchService(BaseModuleService):
         cold_location = str(entry.get("冷存位置", ""))
         target_partition = str(entry.get("目标分区", ""))
 
+        # 有容量明细的任务走容量服务派发，确保产生一次可比对的物理读取记录
+        capacity = self._capacity_for_task(str(entry.get("任务编号", "")))
+        if capacity is not None and not capacity.get("读取编号"):
+            from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+            row, message = service_for("prefetch_capacity").dispatch(
+                int(capacity["id"]), str(capacity.get("可开始时间")))
+            if row is None:
+                return None, message
+
         entry["status"] = "回迁中"
         entry["pending"] = True
         entry["任务状态"] = "回迁中"
@@ -52,6 +62,28 @@ class HotPrefetchService(BaseModuleService):
 
         return entry, f"{self.ENTITY} {entry_id} 回迁中，{cold_location}→{target_partition}"
 
+    def capacity_detail(self) -> dict[str, Any]:
+        """按冷存对象聚合的待回迁计划量，供派发前核对实际读量。"""
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").capacity_summary()
+
+    def capacity_overview(self, as_of: str) -> dict[str, Any]:
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").overview(as_of)
+
+    def reclaim_capacity(self, as_of: str) -> dict[str, Any]:
+        """目标保留窗口结束后回收暂存占用；其他目标仍需的数据继续保留。"""
+        from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+        return service_for("prefetch_capacity").reclaim(as_of)
+
+    def _capacity_for_task(self, task_no: str) -> dict[str, Any] | None:
+        if not task_no:
+            return None
+        for row in store.rows("prefetch_capacity"):
+            if str(row.get("回迁任务")) == task_no:
+                return row
+        return None
+
     def complete_prefetch(self, entry_id: int) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
@@ -62,6 +94,11 @@ class HotPrefetchService(BaseModuleService):
         entry["pending"] = False
         entry["任务状态"] = "已完成"
 
+        capacity = self._capacity_for_task(str(entry.get("任务编号", "")))
+        if capacity is not None and capacity.get("读取编号"):
+            capacity["status"] = "已交付"
+            capacity["可用副本"] = "是"
+
         self._write_prefetch_record(cold_location, entry)
 
         return entry, f"{self.ENTITY} {entry_id} 已完成，数据已从冷存回迁到热层"
@@ -71,6 +108,14 @@ class HotPrefetchService(BaseModuleService):
             return self.start_prefetch(entry_id)
         if action == "确认完成":
             return self.complete_prefetch(entry_id)
+        if action == "回收占用":
+            entry = store.find(self.MODULE, entry_id)
+            if entry is None:
+                return None, f"{self.ENTITY} {entry_id} 不存在"
+            from app.services import service_for  # 延迟导入，避免服务容器循环依赖
+            result = service_for("prefetch_capacity").reclaim(
+                str(entry.get("过期策略") or "2026-11-22T23:59"))
+            return entry, str(result.get("message", ""))
         return super().run_action(entry_id, action)
 
     def _write_prefetch_record(self, cold_location: str, entry: dict[str, Any]) -> None:

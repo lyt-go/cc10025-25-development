@@ -29,3 +29,10 @@ class EntryPayload(BaseModel):
 class ActionPayload(BaseModel):
     action: str
     remark: str | None = None
+    effective_at: str | None = None
+
+
+class DispatchPayload(BaseModel):
+    capacity_id: int
+    as_of: str
+    hold_until: str | None = None
